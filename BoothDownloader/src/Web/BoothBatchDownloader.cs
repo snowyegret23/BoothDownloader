@@ -112,7 +112,17 @@ public static class BoothBatchDownloader
                     allTasks.AddRange(boothItem.Value.Downloadables.Select(url => Task.Run(async () =>
                     {
                         var resp = await BoothHttpClientManager.HttpClient.GetAsync(url, cancellationToken);
-                        var redirectUrl = resp.Headers.Location!.ToString();
+                        if (resp.Headers.Location == null)
+                        {
+                            LoggerHelper.GlobalLogger.LogError("Download Redirection Failed: {Url}", url);
+                            LoggerHelper.GlobalLogger.LogError("Response Status Code: {StatusCode}", resp.StatusCode);
+                            LoggerHelper.GlobalLogger.LogError("Response Header Information: {Headers}", string.Join(", ", resp.Headers.Select(h => $"{h.Key}={string.Join(";", h.Value)}")));
+                            progressBar.WriteErrorLine($"No redirect URL for {url}");
+                            downloadTaskBar.Tick();
+                            progressBar.Tick();
+                            return;
+                        }
+                        var redirectUrl = resp.Headers.Location.ToString();
                         var encodedFilename = new Uri(redirectUrl).Segments.Last();
                         var filename = Uri.UnescapeDataString(encodedFilename);
                         
